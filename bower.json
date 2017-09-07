@@ -1,0 +1,25 @@
+{
+  "name": "markdown-wiki",
+  "authors": [
+    "齋藤 毅 <saitoutak@systena.co.jp>"
+  ],
+  "description": "Frontend CMS by Markdown format.",
+  "main": "",
+  "keywords": [
+    "markdown"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "underscore": "^1.8.3",
+    "marked": "^0.3.6",
+    "bootstrap": "^3.3.7"
+  }
+}
