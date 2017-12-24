@@ -1,0 +1,149 @@
+<!-- jQuery -->
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+<!-- popper -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+<!-- Bootstrap -->
+<script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+<!-- marked -->
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/marked/0.3.6/marked.min.js"></script>
+<!-- underscore -->
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.2/underscore-min.js"></script>
+<!-- highlight -->
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>
+$(function(){
+  
+  // Marked options.
+  marked.setOptions({
+    // For syntax highlighting.
+    langPrefix: '',
+    highlight: function( code, lang ){
+      return hljs.highlightAuto( code, [lang] ).value;
+    }
+  });
+
+  // Generate TOC.
+  TOCGenerator.run( md );
+  // Convert Markdown to HTML.
+  $( '#contents' ).html( marked( md ) );
+
+  // nav.md を読み込む
+  if( nav ){
+  console.log(nav);
+    // Convert Markdown to HTML.
+    let html = marked( nav );
+    console.log(html);
+    html = html
+      // navbar
+      //.replace( /<h1 id=".+">/, '<div class="navbar-header"><a class="navbar-brand" href="#">' )
+      //.replace( '</h1>', '</a></div>' )
+      .replace( /<h1 id=".+">/, '<a class="navbar-brand" href="#">' )
+      .replace( '</h1>', '</a>' )
+      .replace( '<ul>', '<div class="collapse navbar-collapse"><ul class="navbar-nav">' )
+      // divider
+      .replace( /<li><hr>/g, '<li class="divider">' )
+      .replace( /<li>/g, '<li class="nav-item">' )
+      .replace( /<a/g, '<a class="nav-link"' )
+      //.replace( '</ul>', '</ul></div>' )
+      // dropdown-header
+      .replace( /<h1/g, '<h1 class="dropdown-header"' )
+    console.log(html);
+
+    $( 'nav' ).html( html );
+    $( 'ul.navbar-nav > li:has("ul")' )
+      .addClass( 'dropdown' );
+    $( 'ul.navbar-nav > li:has("ul") > a' )
+      .addClass( 'dropdown-toggle' )
+      .attr    ( 'data-toggle', 'dropdown' )
+      .append  ( ' <span class="caret"></span>' );
+    $( 'nav ul li ul' ).addClass( 'dropdown-menu' );
+    $( '.navbar-nav a' ).each( function(){
+      $( this ).attr( 'href', 'index.html#' + $( this ).attr( 'href' ) );
+    });
+  }
+ 
+  // 目次クリック時にページ内移動する
+  $( '#toc a' ).on( 'click', function () {
+    let hash = this.href.substr( this.href.lastIndexOf('#') + 1 );
+    let h = $( ":header:contains('" + hash + "')" );
+    $( 'html, body' ).animate( { scrollTop: h.offset().top }, 'fast' );
+    return false;
+  })
+});
+
+class Item {
+  constructor( title ){
+    this._title = title;
+    this._children = [];
+    this._parent = null;
+  }
+  get title() {
+    return this._title;
+  }
+  set title( value ) {
+    this._title = value;
+  }
+  get children() {
+    return this._children;
+  }
+  get parent() {
+    return this._parent;
+  }
+  set parent( item ) {
+    this._parent = item;
+  }
+
+  generateHtml(){
+    let url = location.hash.substr(1) + "#" + this.title
+    let $li = $( '<li>' ).html( '<a href="#' + url + '">' + this.title + '</a>' );
+    if ( this.children.length > 0 ) {
+      let $ol = $( '<ol>' );
+      this.children.forEach( function( val, idx, arr ){
+        $ol.append( val.generateHtml() );
+      });
+      $li.append( $ol );
+    }
+    return $li;
+  }
+}
+
+class TOCGenerator {
+  static run( contents ){
+    // Generate item tree.
+    let root = new Item( 'root' );
+    let current = []; current[0] = root;
+    let level = 0;
+    let headerCount = 0;
+    let isInCode = false;
+    // Split with return code.
+    contents.split( /\r\n|\r|\n/ ).forEach( function ( val, idx, arr ) {
+      if ( val.startsWith( '```' ) ) isInCode = !isInCode;
+      if ( val.startsWith( '#') && !isInCode ) {
+        let tmp_level = val.match(/^#+/)[0].length;
+        let item = new Item( val.substr( tmp_level + 1 ) );
+        if ( tmp_level > level ) {
+          current[level].children.push( item );
+          item.parent = current[level];
+          current[tmp_level] = item;
+        } else if ( tmp_level == level ) {
+          current[tmp_level].parent.children.push( item );
+          item.parent = current[tmp_level].parent;
+          current[tmp_level] = item;
+        } else {
+          current[tmp_level].parent.children.push( item );
+          item.parent = current[tmp_level].parent;
+          current[tmp_level] = item;
+        }
+        level = tmp_level;
+        headerCount++;
+      }
+    });
+
+    // Convert item tree to html.
+    if ( headerCount >= 5 ) {
+      $( '#toc' ).addClass( 'col-md-3' );
+      $( 'div#toc' ).append( root.generateHtml().children('ol') );
+    }
+  }
+}
+</script>
